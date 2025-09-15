@@ -26,12 +26,13 @@ export type RootStackParamList = {
     LoginLawyer:undefined;
     LoginClient:undefined;
     RegisterLawyer: undefined;
-    RegisterTwoLawyer: undefined;
+    RegisterTwoLawyer: { name: string; email: string; password: string };
     HomePrincipal: undefined;
     RegisterClient: undefined;
     HomeClient: undefined;
     DateRequest: undefined;
     ServiceRequest: undefined
+
 };
 
 //cria o stack navigator com base no tipo das rotas que defini
