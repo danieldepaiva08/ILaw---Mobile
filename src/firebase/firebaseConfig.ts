@@ -1,11 +1,11 @@
-import { initializeApp } from 'firebase/app';
+// src/firebase/firebaseConfig.ts
+import { initializeApp, getApps } from "firebase/app";
 import {
   getAuth,
   createUserWithEmailAndPassword,
   signInWithEmailAndPassword,
   signOut,
-  onAuthStateChanged,
-  User
+  User,
 } from "firebase/auth";
 import {
   getFirestore,
@@ -15,54 +15,28 @@ import {
   serverTimestamp,
 } from "firebase/firestore";
 
+/*
+  Substitua as credenciais abaixo pelas do seu projeto Firebase.
+  Se já estiver usando outro arquivo/configuração, apenas mantenha
+  as funções exportadas (registerClient, registerLawyer, loginUser, logout).
+*/
 // Configuração Firebase
 const firebaseConfig = {
-  apiKey: "AIzaSyC0BXQKdi4oTqGsFVQ7Z8zrRNCdxaMhIyo",
-  authDomain: "ilawmobile.firebaseapp.com",
-  projectId: "ilawmobile",
-  storageBucket: "ilawmobile.firebasestorage.app",
-  messagingSenderId: "399558949805",
-  appId: "1:399558949805:web:2459641ab31bd0bd1bff24",
-  measurementId: "G-S1CT7MNSRS"
+ apiKey: "AIzaSyAfs0NfldTY66rApu4ZaHnZkkm9oez2yeI",
+  authDomain: "ilaw-58695.firebaseapp.com",
+  projectId: "ilaw-58695",
+  storageBucket: "ilaw-58695.firebasestorage.app",
+  messagingSenderId: "992433393234",
+  appId: "1:992433393234:web:260cde1a6170f71c79998b",
+  measurementId: "G-1K3Z6RM8HN"
 };
 
-// Inicializa Firebase
-const app = initializeApp(firebaseConfig);
+const app = !getApps().length ? initializeApp(firebaseConfig) : getApps()[0];
 
 export const auth = getAuth(app);
 export const db = getFirestore(app);
 
-//
-// Registro de cliente
-//
-export async function registerClient(
-  email: string,
-  password: string,
-  name: string,
-  telephone: string,
-  city: string
-) {
-  const res = await createUserWithEmailAndPassword(auth, email, password);
-  const user = res.user;
-
-  const userRef = doc(db, "users", user.uid);
-  await setDoc(userRef, {
-    uid: user.uid,
-    email: user.email,
-    name,
-    telephone,
-    city,
-    role: "client",
-    createdAt: serverTimestamp(),
-    updatedAt: serverTimestamp(),
-  });
-
-  return user;
-}
-
-//
-// Registro de advogado
-//
+// ------------------ Registro Advogado ------------------
 export async function registerLawyer(
   email: string,
   password: string,
@@ -72,63 +46,98 @@ export async function registerLawyer(
   address: string,
   specialty: string
 ) {
-  const res = await createUserWithEmailAndPassword(auth, email, password);
-  const user = res.user;
+  try {
+    const res = await createUserWithEmailAndPassword(auth, email, password);
+    const uid = res.user.uid;
 
-  const userRef = doc(db, "users", user.uid);
-  await setDoc(userRef, {
-    uid: user.uid,
-    email: user.email,
-    name,
-    oab,
-    telephone,
-    address,
-    specialty,
-    role: "lawyer",
-    createdAt: serverTimestamp(),
-    updatedAt: serverTimestamp(),
-  });
+    const payload = {
+      uid,
+      email,
+      name,
+      oab,
+      telephone,
+      address,
+      specialty,
+      role: "lawyer", // importante: usamos `role`
+      createdAt: serverTimestamp(),
+      updatedAt: serverTimestamp(),
+    };
 
-  return user;
+    await setDoc(doc(db, "users", uid), payload);
+    return { user: res.user, data: payload };
+  } catch (err) {
+    console.error("registerLawyer error:", err);
+    throw err;
+  }
 }
 
-//
-// Login com validação de role
-//
-export async function loginUser(
+// ------------------ Registro Cliente ------------------
+export async function registerClient(
   email: string,
   password: string,
-  role: "client" | "lawyer"
+  name: string,
+  telephone: string,
+  city: string
 ) {
-  const res = await signInWithEmailAndPassword(auth, email, password);
-  const user = res.user;
+  try {
+    const res = await createUserWithEmailAndPassword(auth, email, password);
+    const uid = res.user.uid;
 
-  // Busca no Firestore
-  const ref = doc(db, "users", user.uid);
-  const snap = await getDoc(ref);
+    const payload = {
+      uid,
+      email,
+      name,
+      telephone,
+      city,
+      role: "client", // importante: usamos `role`
+      createdAt: serverTimestamp(),
+      updatedAt: serverTimestamp(),
+    };
 
-  if (!snap.exists()) {
-    throw new Error("Perfil não encontrado.");
+    await setDoc(doc(db, "users", uid), payload);
+    return { user: res.user, data: payload };
+  } catch (err) {
+    console.error("registerClient error:", err);
+    throw err;
   }
-
-  const data = snap.data();
-  if (data.role !== role) {
-    throw new Error("Conta inválida para este tipo de login.");
-  }
-
-  return user;
 }
 
-//
-// Logout
-//
-export async function logoutUser() {
-  return await signOut(auth);
+// ------------------ Login (autentica + busca doc no Firestore) ------------------
+export async function loginUser(email: string, password: string) {
+  try {
+    const userCredential = await signInWithEmailAndPassword(auth, email, password);
+    const uid = userCredential.user.uid;
+
+    const userSnap = await getDoc(doc(db, "users", uid));
+    if (!userSnap.exists()) {
+      // garante logout se não encontrou doc
+      await signOut(auth);
+      throw new Error("Usuário não encontrado no banco de dados.");
+    }
+
+    const data = userSnap.data() as Record<string, any>;
+
+    // aceitar tanto 'role' quanto 'type' por segurança (migracões antigas)
+    const role = data.role ?? data.type ?? null;
+    if (!role) {
+      await signOut(auth);
+      throw new Error("Usuário sem role definido no Firestore.");
+    }
+
+    // retorna objeto consistente (sempre terá .role)
+    return { uid, role, ...data };
+  } catch (err) {
+    console.error("loginUser error:", err);
+    throw err;
+  }
 }
 
-//
-// Listener para mudanças no estado de usuário
-//
-export function onAuthChange(callback: (user: User | null) => void) {
-  return onAuthStateChanged(auth, callback);
+// ------------------ Logout ------------------
+export async function logout() {
+  try {
+    await signOut(auth);
+  } catch (err) {
+    console.error("logout error:", err);
+    throw err;
+  }
 }
