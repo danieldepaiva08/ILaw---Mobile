@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "399558949805",
+    "project_id": "ilawmobile",
+    "storage_bucket": "ilawmobile.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:399558949805:android:473a674ddec668ce1bff24",
+        "android_client_info": {
+          "package_name": "com.ilaw.app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyB8zGLp-Sh0MnmPVdqTMhiVFfUg2Oayerw"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
